@@ -1,7 +1,7 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { signOut } from 'firebase/auth'
 import { auth } from '../firebase/config'
-import { Dumbbell, BarChart2, BookOpen, Home, LogOut } from 'lucide-react'
+import { Dumbbell, BarChart2, BookOpen, Home, LogOut, Clock } from 'lucide-react'
 
 export default function Layout({ user }) {
   const navigate = useNavigate()
@@ -10,6 +10,7 @@ export default function Layout({ user }) {
     { to:'/', icon:Home, label:'Dashboard' },
     { to:'/workout', icon:Dumbbell, label:'Trening' },
     { to:'/progress', icon:BarChart2, label:'Postep' },
+    { to:'/history', icon:Clock, label:'Historia' },
     { to:'/exercises', icon:BookOpen, label:'Cwiczenia' },
   ]
   return (
