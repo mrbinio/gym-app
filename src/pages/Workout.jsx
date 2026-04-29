@@ -2,13 +2,11 @@ import { useState, useEffect } from 'react'
 import { collection, getDocs, addDoc, serverTimestamp, query, where, orderBy, limit } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { useLocation } from 'react-router-dom'
-import { DEFAULT_EXERCISES } from '../data/exercises'
+import { DEFAULT_EXERCISES, DAYS } from '../data/exercises'
 import { Plus, Trash2, CheckCircle, ChevronDown, ChevronUp, Info } from 'lucide-react'
-import { useLang } from '../App'
 
 export default function Workout({ user }) {
   const location = useLocation()
-  const { lang, t } = useLang()
   const [selectedDay, setSelectedDay] = useState(location.state?.day || 'A')
   const [exercises, setExercises] = useState([])
   const [log, setLog] = useState({})
@@ -18,12 +16,6 @@ export default function Workout({ user }) {
   const [prevBests, setPrevBests] = useState({})
   const [showDesc, setShowDesc] = useState({})
 
-  const DAYS_T = {
-    A: { label:t.dayA, sub:t.subA, color:'#3b82f6' },
-    B: { label:t.dayB, sub:t.subB, color:'#22c55e' },
-    C: { label:t.dayC, sub:t.subC, color:'#f97316' },
-    D: { label:t.dayD, sub:t.subD, color:'#a78bfa' },
-  }
   useEffect(() => {
     const load = async () => {
       try {
@@ -43,20 +35,97 @@ export default function Workout({ user }) {
   }, [selectedDay, user.uid])
 
   const initSets = (ex) => {
-    if (log[ex.id]?.length>0) return
-    setLog(l=>({...l,[ex.id]:Array.from({length:ex.sets||3},()=>({weight:'',reps:''}))}))
+    if (log[ex.id]?.length > 0) return
+    setLog(l=>({...l,[ex.id]:Array.from({length:ex.sets||3},()=>({weight:'',reps:''}))}))    
     setExpanded(e=>({...e,[ex.id]:true}))
   }
-  const addSet = (id) => setLog(l=>({...l,[id]:[...(l[id]||[]),{weight:'',reps:''}]}))
-  const updateSet = (id,i,f,v) => setLog(l=>{const s=[...(l[id]||[])];s[i]={...s[i],[f]:v};return{...l,[id]:s}})
-  const removeSet = (id,i) => setLog(l=>({...l,[id]:(l[id]||[]).filter((_,j)=>j!==i)}))
+  const addSet = (exId) => setLog(l=>({...l,[exId]:[...(l[exId]||[]),{weight:'',reps:''}]}))
+  const updateSet = (exId,idx,field,val) => setLog(l=>{const s=[...(l[exId]||[])];s[idx]={...s[idx],[field]:val};return{...l,[exId]:s}})
+  const removeSet = (exId,idx) => setLog(l=>({...l,[exId]:(l[exId]||[]).filter((_,i)=>i!==idx)}))
+
   const saveWorkout = async () => {
-    const loggedEx=exercises.filter(e=>log[e.id]?.length>0).map(e=>({exId:e.id,name:e.name,sets:log[e.id].filter(s=>s.weight||s.reps)})).filter(e=>e.sets.length>0)
+    const loggedEx = exercises.filter(e=>log[e.id]?.length>0).map(e=>({exId:e.id,name:e.name,sets:log[e.id].filter(s=>s.reps||s.weight)})).filter(e=>e.sets.length>0)
     if (!loggedEx.length) return
     setSaving(true)
     try { await addDoc(collection(db,'workouts'),{uid:user.uid,day:selectedDay,exercises:loggedEx,date:serverTimestamp()}); setSaved(true) }
     catch(e) { console.error(e) }
     setSaving(false)
   }
-  const totalSets=Object.values(log).reduce((a,s)=>a+(s?.filter(s=>s.weight||s.reps).length||0),0)
-  const dayConfig=DAYS_T[selectedDay]undefined
+  const totalSets = Object.values(log).reduce((a,s)=>a+(s?.filter(s=>s.reps||s.weight).length||0),0)
+  const dayConfig = DAYS[selectedDay]
+  return (
+    <div>
+      <h1 style={{fontFamily:'var(--font-display)',fontSize:32,letterSpacing:2,marginBottom:4}}>TRENING</h1>
+      <p style={{color:'var(--text3)',fontSize:13,marginBottom:24}}>{new Date().toLocaleDateString('pl-PL',{weekday:'long',day:'numeric',month:'long'})}</p>
+      <div style={{display:'flex',gap:8,marginBottom:16,flexWrap:'wrap'}}>
+        {Object.entries(DAYS).map(([key,{label,color}])=>(
+          <button key={key} onClick={()=>setSelectedDay(key)} style={{padding:'8px 18px',borderRadius:20,border:'1px solid '+(selectedDay===key?color:'var(--border)'),background:selectedDay===key?color+'22':'transparent',color:selectedDay===key?color:'var(--text2)',fontWeight:selectedDay===key?600:400,fontSize:14}}>{label}</button>
+        ))}
+      </div>
+      <div style={{marginBottom:20,padding:'10px 16px',background:dayConfig.color+'11',border:'1px solid '+dayConfig.color+'33',borderRadius:'var(--radius-sm)',fontSize:13,color:'var(--text2)'}}>{dayConfig.sub}</div>
+      {saved ? (
+        <div style={{textAlign:'center',padding:'40px 20px',background:'var(--bg2)',borderRadius:'var(--radius)',border:'1px solid var(--success)44'}}>
+          <CheckCircle size={48} color='var(--success)' style={{marginBottom:12}}/>
+          <div style={{fontFamily:'var(--font-display)',fontSize:28,letterSpacing:2,color:'var(--success)',marginBottom:8}}>TRENING ZAPISANY!</div>
+          <div style={{color:'var(--text3)',fontSize:14,marginBottom:20}}>{totalSets} serii zapisanych</div>
+          <button className='btn-ghost' onClick={()=>{setSaved(false);setLog({})}}>Zacznij kolejny</button>
+        </div>
+      ) : (
+        <>
+          <div style={{display:'flex',flexDirection:'column',gap:10,marginBottom:20}}>
+            {exercises.map(ex=>{
+              const sets=log[ex.id]||[]
+              const prev=prevBests[ex.id]||[]
+              const doneSets=sets.filter(s=>s.reps||s.weight).length
+              const isBodyweight = ex.noWeight === true
+              return (
+                <div key={ex.id} className='card' style={{padding:0,overflow:'hidden',border:doneSets>0?'1px solid var(--accent)44':'1px solid var(--border)'}}>
+                  <div style={{display:'flex',alignItems:'center',gap:12,padding:'14px 16px',cursor:'pointer'}} onClick={()=>expanded[ex.id]?setExpanded(e=>({...e,[ex.id]:false})):initSets(ex)}>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:14,fontWeight:600}}>{ex.name}</div>
+                      <div style={{display:'flex',gap:6,marginTop:4,alignItems:'center',flexWrap:'wrap'}}>
+                        <span className='tag'>{ex.group}</span>
+                        <span style={{fontSize:12,color:'var(--accent)',background:'var(--bg3)',padding:'2px 8px',borderRadius:10,border:'1px solid var(--accent)33',fontWeight:600}}>{ex.sets} x {ex.reps}</span>
+                        {isBodyweight && <span style={{fontSize:11,color:'var(--text3)',background:'var(--bg3)',padding:'2px 8px',borderRadius:10,border:'1px solid var(--border)'}}>wlasna masa</span>}
+                        {doneSets>0&&<span style={{fontSize:12,color:'var(--success)',fontWeight:600}}>{String.fromCharCode(10003)} {doneSets} serii</span>}
+                      </div>
+                    </div>
+                    <button onClick={e=>{e.stopPropagation();setShowDesc(d=>({...d,[ex.id]:!d[ex.id]}))}} style={{background:'none',color:'var(--text3)',padding:4}}><Info size={14}/></button>
+                    {expanded[ex.id]?<ChevronUp size={16} color='var(--text3)'/>:<ChevronDown size={16} color='var(--text3)'/>}
+                  </div>
+                  {showDesc[ex.id]&&<div style={{padding:'8px 16px 12px',fontSize:13,color:'var(--text2)',background:'var(--bg3)',borderTop:'1px solid var(--border)',lineHeight:1.6}}>{ex.desc}</div>}
+                  {expanded[ex.id]&&(
+                    <div style={{padding:'8px 16px 14px',borderTop:'1px solid var(--border)'}}>
+                      {prev.length>0&&(
+                        <div style={{fontSize:12,color:'var(--text3)',marginBottom:10,padding:'6px 10px',background:'var(--bg3)',borderRadius:'var(--radius-sm)'}}>
+                          Poprzednio: {prev.map((s,i)=><span key={i} style={{color:'var(--accent)',fontWeight:600,marginRight:8}}>{isBodyweight?'':s.weight+'kg '}{s.reps}</span>)}
+                        </div>
+                      )}
+                      {sets.length>0&&(
+                        <div style={{marginBottom:8}}>
+                          <div style={{display:'grid',gridTemplateColumns:isBodyweight?'28px 1fr 28px':'28px 1fr 1fr 28px',gap:6,fontSize:11,color:'var(--text3)',marginBottom:6}}>
+                            <span>#</span>{!isBodyweight&&<span>Ciezar (kg)</span>}<span>Powt.</span><span></span>
+                          </div>
+                          {sets.map((s,i)=>(
+                            <div key={i} style={{display:'grid',gridTemplateColumns:isBodyweight?'28px 1fr 28px':'28px 1fr 1fr 28px',gap:6,marginBottom:6,alignItems:'center'}}>
+                              <span style={{fontSize:12,color:(s.reps||s.weight)?'var(--accent)':'var(--text3)',paddingTop:8,fontWeight:600}}>{i+1}</span>
+                              {!isBodyweight&&<input type='number' inputMode='decimal' placeholder={prev[i]?.weight||'kg'} value={s.weight} onChange={e=>updateSet(ex.id,i,'weight',e.target.value)} min='0' step='0.5'/>}
+                              <input type='text' inputMode='numeric' placeholder={ex.reps||prev[i]?.reps||'powt'} value={s.reps} onChange={e=>updateSet(ex.id,i,'reps',e.target.value)}/>
+                              <button onClick={()=>removeSet(ex.id,i)} style={{background:'none',color:'var(--text3)',padding:4,paddingTop:8}}><Trash2 size={13}/></button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <button onClick={()=>addSet(ex.id)} style={{display:'flex',alignItems:'center',gap:6,background:'var(--bg3)',border:'1px dashed var(--border)',color:'var(--text2)',padding:'8px 14px',borderRadius:'var(--radius-sm)',fontSize:13,width:'100%',justifyContent:'center',marginTop:4}}><Plus size={14}/> Dodaj serie</button>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+          <button onClick={saveWorkout} disabled={saving||totalSets===0} className='btn-primary' style={{opacity:totalSets===0?0.4:1}}>{saving?'Zapisywanie...':totalSets===0?'Kliknij cwiczenie aby zaczac':'Zapisz trening ('+totalSets+' serii)'}</button>
+        </>
+      )}
+    </div>
+  )
+}
