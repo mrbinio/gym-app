@@ -1,0 +1,31 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0a0e1a;
+  --bg2: #111827;
+  --bg3: #1c2333;
+  --border: #1e2d45;
+  --accent: #f97316;
+  --accent2: #fb923c;
+  --text: #f1f5f9;
+  --text2: #94a3b8;
+  --text3: #475569;
+  --success: #22c55e;
+  --danger: #ef4444;
+  --font-display: 'Bebas Neue', sans-serif;
+  --font-body: 'DM Sans', sans-serif;
+  --radius: 12px;
+  --radius-sm: 8px;
+}
+body { font-family: var(--font-body); background: var(--bg); color: var(--text); min-height: 100vh; -webkit-font-smoothing: antialiased; }
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+input, textarea, select { font-family: var(--font-body); background: var(--bg3); border: 1px solid var(--border); color: var(--text); border-radius: var(--radius-sm); padding: 10px 14px; font-size: 14px; outline: none; transition: border-color 0.2s; width: 100%; }
+input:focus, textarea:focus, select:focus { border-color: var(--accent); }
+button { font-family: var(--font-body); cursor: pointer; border: none; transition: all 0.2s; }
+.btn-primary { background: var(--accent); color: white; padding: 12px 24px; border-radius: var(--radius-sm); font-weight: 600; font-size: 14px; width: 100%; }
+.btn-primary:hover { background: var(--accent2); transform: translateY(-1px); }
+.btn-ghost { background: transparent; color: var(--text2); padding: 10px 20px; border-radius: var(--radius-sm); font-size: 14px; border: 1px solid var(--border); }
+.btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+.card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+.tag { display: inline-block; background: var(--bg3); border: 1px solid var(--border); border-radius: 20px; padding: 3px 12px; font-size: 12px; color: var(--text2); }
