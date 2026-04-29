@@ -15,9 +15,12 @@ export default function Progress({ user }) {
   useEffect(() => {
     const load = async () => {
       try {
-        const q = query(collection(db,'workouts'), where('uid','==',user.uid), orderBy('date','asc'))
+        // Use desc to match existing Firestore index, then reverse for chart
+        const q = query(collection(db,'workouts'), where('uid','==',user.uid), orderBy('date','desc'))
         const snap = await getDocs(q)
-        setWorkouts(snap.docs.map(d => ({ id:d.id, ...d.data() })))
+        const data = snap.docs.map(d => ({ id:d.id, ...d.data() }))
+        // Reverse so oldest is first for chart display
+        setWorkouts(data.reverse())
         const cq = query(collection(db,'custom_exercises'), where('uid','==',user.uid))
         const csnap = await getDocs(cq)
         setCustomEx(csnap.docs.map(d => ({ id:d.id, ...d.data() })))
@@ -32,7 +35,6 @@ export default function Progress({ user }) {
     const selectedEx = [...DEFAULT_EXERCISES, ...customEx].find(e => e.id === selected)
     const data = []
     workouts.forEach(w => {
-      // Try matching by exId first, then by name as fallback
       let ex = w.exercises?.find(e => e.exId === selected)
       if (!ex && selectedEx) {
         ex = w.exercises?.find(e => e.name === selectedEx.name)
