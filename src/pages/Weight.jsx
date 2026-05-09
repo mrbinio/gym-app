@@ -99,10 +99,10 @@ export default function Weight({ user }) {
               onKeyDown={e=>e.key==='Enter'&&addEntry()}
               style={{fontSize:20,padding:'12px 14px',fontWeight:600,width:'100%'}}/>
           </div>
-          <div>
+          <div style={{overflow:'hidden',minWidth:0}}>
             <label style={{fontSize:12,color:'var(--text2)',marginBottom:6,display:'block'}}>Data pomiaru</label>
             <input type='date' value={date} onChange={e=>setDate(e.target.value)}
-              style={{fontSize:14,padding:'10px 14px',width:'100%'}}/>
+              style={{fontSize:14,padding:'10px 14px',width:'100%',maxWidth:'100%',boxSizing:'border-box',display:'block'}}/>
           </div>
           <button onClick={addEntry} disabled={saving||!weight} className='btn-primary'
             style={{opacity:!weight?0.4:1}}>
@@ -120,7 +120,7 @@ export default function Weight({ user }) {
             </div>
             <div className='card' style={{textAlign:'center',padding:'14px 10px'}}>
               <div style={{fontSize:26,fontFamily:'var(--font-display)',letterSpacing:1,color:bmiColor(currentBmi)}}>{currentBmi}</div>
-              <div style={{fontSize:11,color:'var(--text3)',marginTop:2}}>BMI – {bmiLabel(currentBmi)}</div>
+              <div style={{fontSize:11,color:'var(--text3)',marginTop:2}}>BMI â {bmiLabel(currentBmi)}</div>
             </div>
             {diff!==null&&(
               <div className='card' style={{textAlign:'center',padding:'14px 10px'}}>
@@ -130,7 +130,7 @@ export default function Weight({ user }) {
             )}
             <div className='card' style={{textAlign:'center',padding:'14px 10px',cursor:'pointer'}} onClick={()=>{setNewGoal(goal);setShowGoalEdit(true)}}>
               <div style={{fontSize:26,fontFamily:'var(--font-display)',letterSpacing:1,color:parseFloat(toGoal)<=0?'var(--success)':'var(--text2)'}}>{parseFloat(toGoal)>0?'+':''}{toGoal} kg</div>
-              <div style={{fontSize:11,color:'var(--text3)',marginTop:2}}>Do celu ({goal} kg) ✏️</div>
+              <div style={{fontSize:11,color:'var(--text3)',marginTop:2}}>Do celu ({goal} kg) âï¸</div>
             </div>
           </div>
 
@@ -169,7 +169,7 @@ export default function Weight({ user }) {
       <div className='card'>
         <div style={{fontSize:14,fontWeight:600,marginBottom:14}}>Historia pomiarow</div>
         {loading?<div style={{color:'var(--text3)',fontSize:13}}>Ladowanie...</div>:entries.length===0?(
-          <div style={{textAlign:'center',padding:'20px 0',color:'var(--text3)',fontSize:14}}>Wpisz pierwsza wage! 💪</div>
+          <div style={{textAlign:'center',padding:'20px 0',color:'var(--text3)',fontSize:14}}>Wpisz pierwsza wage! ðª</div>
         ):(
           <div>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 28px',gap:8,fontSize:11,color:'var(--text3)',marginBottom:8,paddingBottom:8,borderBottom:'1px solid var(--border)'}}>
