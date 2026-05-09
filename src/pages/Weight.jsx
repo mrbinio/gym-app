@@ -16,24 +16,32 @@ export default function Weight({ user }) {
   const [showGoalEdit, setShowGoalEdit] = useState(false)
   const [newGoal, setNewGoal] = useState('')
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const q = query(collection(db,'weight_entries'), where('uid','==',user.uid), orderBy('date','desc'))
-        const snap = await getDocs(q)
-        setEntries(snap.docs.map(d => ({ id:d.id, ...d.data() })))
-      } catch(e) { console.error(e) }
-      setLoading(false)
-    }
-    load()
-  }, [user.uid])
+  useEffect(() => { load() }, [user.uid])
 
-  // Fix comma -> dot for European keyboards
-  const parseWeight = (val) => parseFloat(val.replace(',', '.'))
+  const load = async () => {
+    setLoading(true)
+    try {
+      const q = query(collection(db,'weight_entries'), where('uid','==',user.uid), orderBy('date','desc'))
+      const snap = await getDocs(q)
+      setEntries(snap.docs.map(d => ({ id:d.id, ...d.data() })))
+    } catch(e) {
+      console.error('weight load error', e)
+      // Try without orderBy if index missing
+      try {
+        const q2 = query(collection(db,'weight_entries'), where('uid','==',user.uid))
+        const snap2 = await getDocs(q2)
+        const data = snap2.docs.map(d => ({ id:d.id, ...d.data() }))
+        data.sort((a,b) => b.date.toDate() - a.date.toDate())
+        setEntries(data)
+      } catch(e2) { console.error('weight fallback error', e2) }
+    }
+    setLoading(false)
+  }
+
   const handleWeightChange = (val) => setWeight(val.replace(',', '.'))
 
   const addEntry = async () => {
-    const w = parseWeight(weight)
+    const w = parseFloat(weight.replace(',', '.'))
     if (!w || w < 30 || w > 300) return
     setSaving(true)
     try {
@@ -42,7 +50,7 @@ export default function Weight({ user }) {
       const newEntry = { id:ref.id, uid:user.uid, weight:w, date:Timestamp.fromDate(dateObj) }
       setEntries(e => [newEntry,...e].sort((a,b) => b.date.toDate()-a.date.toDate()))
       setWeight('')
-    } catch(e) { console.error(e) }
+    } catch(e) { console.error('add weight error', e); alert('Blad zapisu: ' + e.message) }
     setSaving(false)
   }
 
@@ -62,10 +70,8 @@ export default function Weight({ user }) {
   const bmiLabel = (b) => b<18.5?'Niedowaga':b<25?'Norma':b<30?'Nadwaga':'Otylosc'
   const bmiColor = (b) => b<18.5?'#3b82f6':b<25?'var(--success)':b<30?'var(--accent)':'var(--danger)'
 
-  const latest = entries[0]
-  const prev = entries[1]
-  const latestW = latest?.weight || 0
-  const diff = prev ? (latestW - prev.weight).toFixed(1) : null
+  const latestW = entries[0]?.weight || 0
+  const diff = entries[1] ? (latestW - entries[1].weight).toFixed(1) : null
   const toGoal = latestW ? (latestW - parseFloat(goal)).toFixed(1) : null
   const currentBmi = latestW ? bmi(latestW) : null
   const chartData = [...entries].reverse().map(e => ({ date:e.date.toDate().toLocaleDateString('pl-PL',{day:'numeric',month:'short'}), waga:e.weight }))
@@ -74,30 +80,32 @@ export default function Weight({ user }) {
     <div style={{background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:8,padding:'10px 14px',fontSize:13}}>
       <div style={{color:'var(--text2)',marginBottom:4}}>{label}</div>
       <div style={{color:'var(--accent)',fontWeight:600}}>{payload[0].value} kg</div>
-      <div style={{color:'var(--text3)',fontSize:11}}>BMI: {bmi(payload[0].value)} - {bmiLabel(bmi(payload[0].value))}</div>
+      <div style={{color:'var(--text3)',fontSize:11}}>BMI: {bmi(payload[0].value)}</div>
     </div>
   ) : null
 
   return (
     <div>
       <h1 style={{fontFamily:'var(--font-display)',fontSize:32,letterSpacing:2,marginBottom:4}}>WAGA</h1>
-      <p style={{color:'var(--text3)',fontSize:13,marginBottom:24}}>Sledz swoja wage i BMI (wzrost: {HEIGHT_CM} cm)</p>
+      <p style={{color:'var(--text3)',fontSize:13,marginBottom:20}}>Sledz swoja wage i BMI (wzrost: {HEIGHT_CM} cm)</p>
 
       <div className='card' style={{marginBottom:16}}>
-        <div style={{display:'flex',flexDirection:'column',gap:12}}>
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-            <div>
-              <label style={{fontSize:12,color:'var(--text2)',marginBottom:6,display:'block'}}>Waga (kg)</label>
-              <input type='text' inputMode='decimal' value={weight} onChange={e=>handleWeightChange(e.target.value)}
-                placeholder='np. 89.5 lub 89,5' onKeyDown={e=>e.key==='Enter'&&addEntry()}
-                style={{fontSize:18,padding:'10px 14px',fontWeight:600}}/>
-            </div>
-            <div>
-              <label style={{fontSize:12,color:'var(--text2)',marginBottom:6,display:'block'}}>Data</label>
-              <input type='date' value={date} onChange={e=>setDate(e.target.value)} style={{fontSize:14,padding:'10px 14px',width:'100%'}}/>
-            </div>
+        <div style={{display:'flex',flexDirection:'column',gap:10}}>
+          <div>
+            <label style={{fontSize:12,color:'var(--text2)',marginBottom:6,display:'block'}}>Waga (kg)</label>
+            <input type='text' inputMode='decimal' value={weight}
+              onChange={e=>handleWeightChange(e.target.value)}
+              placeholder='np. 89.5 lub 89,5'
+              onKeyDown={e=>e.key==='Enter'&&addEntry()}
+              style={{fontSize:20,padding:'12px 14px',fontWeight:600,width:'100%'}}/>
           </div>
-          <button onClick={addEntry} disabled={saving||!weight} className='btn-primary' style={{opacity:!weight?0.4:1}}>
+          <div>
+            <label style={{fontSize:12,color:'var(--text2)',marginBottom:6,display:'block'}}>Data pomiaru</label>
+            <input type='date' value={date} onChange={e=>setDate(e.target.value)}
+              style={{fontSize:14,padding:'10px 14px',width:'100%'}}/>
+          </div>
+          <button onClick={addEntry} disabled={saving||!weight} className='btn-primary'
+            style={{opacity:!weight?0.4:1}}>
             {saving?'Zapisywanie...':'Zapisz pomiar'}
           </button>
         </div>
@@ -105,7 +113,7 @@ export default function Weight({ user }) {
 
       {latestW > 0 && (
         <>
-          <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:10,marginBottom:16}}>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:16}}>
             <div className='card' style={{textAlign:'center',padding:'14px 10px'}}>
               <div style={{fontSize:26,fontFamily:'var(--font-display)',letterSpacing:1,color:'var(--accent)'}}>{latestW} kg</div>
               <div style={{fontSize:11,color:'var(--text3)',marginTop:2}}>Aktualna waga</div>
@@ -141,7 +149,7 @@ export default function Weight({ user }) {
             <div className='card' style={{marginBottom:16}}>
               <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:16}}>
                 <TrendingDown size={16} color='var(--accent)'/>
-                <span style={{fontSize:14,fontWeight:600}}>Historia wagi (kg)</span>
+                <span style={{fontSize:14,fontWeight:600}}>Historia wagi</span>
               </div>
               <ResponsiveContainer width='100%' height={220}>
                 <LineChart data={chartData}>
@@ -161,7 +169,7 @@ export default function Weight({ user }) {
       <div className='card'>
         <div style={{fontSize:14,fontWeight:600,marginBottom:14}}>Historia pomiarow</div>
         {loading?<div style={{color:'var(--text3)',fontSize:13}}>Ladowanie...</div>:entries.length===0?(
-          <div style={{textAlign:'center',padding:'20px 0',color:'var(--text3)',fontSize:14}}>Wpisz pierwsza wage!</div>
+          <div style={{textAlign:'center',padding:'20px 0',color:'var(--text3)',fontSize:14}}>Wpisz pierwsza wage! 💪</div>
         ):(
           <div>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 28px',gap:8,fontSize:11,color:'var(--text3)',marginBottom:8,paddingBottom:8,borderBottom:'1px solid var(--border)'}}>
