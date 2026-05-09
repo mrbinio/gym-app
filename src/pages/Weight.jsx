@@ -1,0 +1,197 @@
+import { useState, useEffect } from 'react'
+import { collection, query, where, orderBy, getDocs, addDoc, deleteDoc, doc, Timestamp } from 'firebase/firestore'
+import { db } from '../firebase/config'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts'
+import { Scale, Trash2, Target, TrendingDown } from 'lucide-react'
+
+const HEIGHT_CM = 176
+
+export default function Weight({ user }) {
+  const [entries, setEntries] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [weight, setWeight] = useState('')
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0])
+  const [goal, setGoal] = useState(() => localStorage.getItem('weight_goal') || '82')
+  const [saving, setSaving] = useState(false)
+  const [showGoalEdit, setShowGoalEdit] = useState(false)
+  const [newGoal, setNewGoal] = useState('')
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const q = query(collection(db,'weight_entries'), where('uid','==',user.uid), orderBy('date','desc'))
+        const snap = await getDocs(q)
+        setEntries(snap.docs.map(d => ({ id:d.id, ...d.data() })))
+      } catch(e) { console.error(e) }
+      setLoading(false)
+    }
+    load()
+  }, [user.uid])
+
+  const addEntry = async () => {
+    if (!weight || parseFloat(weight) < 30 || parseFloat(weight) > 300) return
+    setSaving(true)
+    try {
+      const dateObj = new Date(date + 'T12:00:00')
+      const ref = await addDoc(collection(db,'weight_entries'), {
+        uid: user.uid,
+        weight: parseFloat(weight),
+        date: Timestamp.fromDate(dateObj)
+      })
+      const newEntry = { id: ref.id, uid: user.uid, weight: parseFloat(weight), date: Timestamp.fromDate(dateObj) }
+      setEntries(e => [newEntry, ...e].sort((a,b) => b.date.toDate() - a.date.toDate()))
+      setWeight('')
+    } catch(e) { console.error(e) }
+    setSaving(false)
+  }
+
+  const deleteEntry = async (id) => {
+    if (!window.confirm('Usunac ten pomiar?')) return
+    try {
+      await deleteDoc(doc(db,'weight_entries',id))
+      setEntries(e => e.filter(x => x.id !== id))
+    } catch(e) { console.error(e) }
+  }
+
+  const saveGoal = () => {
+    const g = parseFloat(newGoal)
+    if (g > 30 && g < 300) { localStorage.setItem('weight_goal', g); setGoal(g); }
+    setShowGoalEdit(false)
+  }
+
+  const bmi = (w) => (w / ((HEIGHT_CM/100) ** 2)).toFixed(1)
+  const bmiLabel = (b) => b < 18.5 ? 'Niedowaga' : b < 25 ? 'Norma' : b < 30 ? 'Nadwaga' : 'Otylosc'
+  const bmiColor = (b) => b < 18.5 ? '#3b82f6' : b < 25 ? 'var(--success)' : b < 30 ? 'var(--accent)' : 'var(--danger)'
+
+  const latest = entries[0]
+  const prev = entries[1]
+  const latestW = latest?.weight || 0
+  const diff = prev ? (latestW - prev.weight).toFixed(1) : null
+  const toGoal = latestW ? (latestW - parseFloat(goal)).toFixed(1) : null
+  const currentBmi = latestW ? bmi(latestW) : null
+
+  const chartData = [...entries].reverse().map(e => ({
+    date: e.date.toDate().toLocaleDateString('pl-PL', {day:'numeric', month:'short'}),
+    waga: e.weight
+  }))
+
+  const Tip = ({active,payload,label}) => active && payload?.length ? (
+    <div style={{background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:8,padding:'10px 14px',fontSize:13}}>
+      <div style={{color:'var(--text2)',marginBottom:4}}>{label}</div>
+      <div style={{color:'var(--accent)',fontWeight:600}}>{payload[0].value} kg</div>
+      <div style={{color:'var(--text3)',fontSize:11}}>BMI: {bmi(payload[0].value)} - {bmiLabel(bmi(payload[0].value))}</div>
+    </div>
+  ) : null
+
+  return (
+    <div>
+      <h1 style={{fontFamily:'var(--font-display)',fontSize:32,letterSpacing:2,marginBottom:4}}>WAGA</h1>
+      <p style={{color:'var(--text3)',fontSize:13,marginBottom:24}}>Sledz swoja wage i BMI</p>
+
+      <div className='card' style={{marginBottom:16}}>
+        <div style={{display:'flex',gap:12,alignItems:'flex-end',flexWrap:'wrap'}}>
+          <div style={{flex:1,minWidth:120}}>
+            <label style={{fontSize:12,color:'var(--text2)',marginBottom:6,display:'block'}}>Waga (kg)</label>
+            <input type='number' inputMode='decimal' value={weight} onChange={e=>setWeight(e.target.value)}
+              placeholder='np. 89.5' min='30' max='300' step='0.1'
+              onKeyDown={e=>e.key==='Enter'&&addEntry()}
+              style={{fontSize:18,padding:'10px 14px',fontWeight:600}}/>
+          </div>
+          <div style={{flex:1,minWidth:140}}>
+            <label style={{fontSize:12,color:'var(--text2)',marginBottom:6,display:'block'}}>Data pomiaru</label>
+            <input type='date' value={date} onChange={e=>setDate(e.target.value)} style={{fontSize:14,padding:'10px 14px'}}/>
+          </div>
+          <button onClick={addEntry} disabled={saving||!weight} className='btn-primary'
+            style={{width:'auto',padding:'12px 24px',opacity:!weight?0.4:1,whiteSpace:'nowrap'}}>
+            {saving?'...':'Zapisz'}
+          </button>
+        </div>
+      </div>
+
+      {latestW > 0 && (
+        <>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(130px,1fr))',gap:10,marginBottom:20}}>
+            <div className='card' style={{textAlign:'center',padding:'14px 10px'}}>
+              <div style={{fontSize:28,fontFamily:'var(--font-display)',letterSpacing:1,color:'var(--accent)'}}>{latestW} kg</div>
+              <div style={{fontSize:11,color:'var(--text3)',marginTop:2}}>Aktualna waga</div>
+            </div>
+            <div className='card' style={{textAlign:'center',padding:'14px 10px'}}>
+              <div style={{fontSize:28,fontFamily:'var(--font-display)',letterSpacing:1,color:bmiColor(currentBmi)}}>{currentBmi}</div>
+              <div style={{fontSize:11,color:'var(--text3)',marginTop:2}}>BMI - {bmiLabel(currentBmi)}</div>
+            </div>
+            {diff !== null && (
+              <div className='card' style={{textAlign:'center',padding:'14px 10px'}}>
+                <div style={{fontSize:28,fontFamily:'var(--font-display)',letterSpacing:1,color:parseFloat(diff)<=0?'var(--success)':'var(--danger)'}}>{parseFloat(diff)>0?'+':''}{diff} kg</div>
+                <div style={{fontSize:11,color:'var(--text3)',marginTop:2}}>Zmiana</div>
+              </div>
+            )}
+            <div className='card' style={{textAlign:'center',padding:'14px 10px',cursor:'pointer'}} onClick={()=>{setNewGoal(goal);setShowGoalEdit(true)}}>
+              <div style={{fontSize:28,fontFamily:'var(--font-display)',letterSpacing:1,color:parseFloat(toGoal)<=0?'var(--success)':'var(--text2)'}}>{parseFloat(toGoal)>0?'+':''}{toGoal} kg</div>
+              <div style={{fontSize:11,color:'var(--text3)',marginTop:2}}>Do celu ({goal} kg) ✏️</div>
+            </div>
+          </div>
+
+          {showGoalEdit && (
+            <div className='card' style={{marginBottom:16,border:'1px solid var(--accent)44'}}>
+              <div style={{fontSize:13,fontWeight:600,marginBottom:10,color:'var(--accent)'}}>Ustaw cel wagowy</div>
+              <div style={{display:'flex',gap:8}}>
+                <input type='number' value={newGoal} onChange={e=>setNewGoal(e.target.value)} placeholder='np. 82' min='40' max='200' step='0.5' style={{flex:1}}/>
+                <button onClick={saveGoal} className='btn-primary' style={{width:'auto',padding:'10px 16px'}}>Zapisz</button>
+                <button onClick={()=>setShowGoalEdit(false)} className='btn-ghost' style={{padding:'10px 12px'}}>X</button>
+              </div>
+            </div>
+          )}
+
+          {chartData.length > 1 && (
+            <div className='card' style={{marginBottom:16}}>
+              <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:16}}>
+                <TrendingDown size={16} color='var(--accent)'/>
+                <span style={{fontSize:14,fontWeight:600}}>Historia wagi (kg)</span>
+              </div>
+              <ResponsiveContainer width='100%' height={220}>
+                <LineChart data={chartData}>
+                  <CartesianGrid strokeDasharray='3 3' stroke='#1e2d45'/>
+                  <XAxis dataKey='date' tick={{fontSize:11,fill:'#475569'}}/>
+                  <YAxis domain={['dataMin - 2','dataMax + 2']} tick={{fontSize:11,fill:'#475569'}}/>
+                  <Tooltip content={<Tip/>}/>
+                  <ReferenceLine y={parseFloat(goal)} stroke='var(--success)' strokeDasharray='5 5' label={{value:'Cel',fill:'var(--success)',fontSize:11}}/>
+                  <Line type='monotone' dataKey='waga' stroke='var(--accent)' strokeWidth={2} dot={{fill:'var(--accent)',r:4}} activeDot={{r:6}}/>
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </>
+      )}
+
+      <div className='card'>
+        <div style={{fontSize:14,fontWeight:600,marginBottom:14}}>Historia pomiarow</div>
+        {loading ? <div style={{color:'var(--text3)',fontSize:13}}>Ladowanie...</div> :
+        entries.length === 0 ? (
+          <div style={{textAlign:'center',padding:'20px 0',color:'var(--text3)',fontSize:14}}>Brak pomiarow. Wpisz pierwsza wage!</div>
+        ) : (
+          <div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 28px',gap:8,fontSize:11,color:'var(--text3)',marginBottom:8,paddingBottom:8,borderBottom:'1px solid var(--border)'}}>
+              <span>Data</span><span>Waga</span><span>BMI</span><span></span>
+            </div>
+            {entries.map((e,i) => {
+              const b = bmi(e.weight)
+              const prevW = entries[i+1]?.weight
+              const d = prevW ? (e.weight - prevW).toFixed(1) : null
+              return (
+                <div key={e.id} style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 28px',gap:8,padding:'8px 0',borderBottom:'1px solid var(--border)',fontSize:13,alignItems:'center'}}>
+                  <span style={{color:'var(--text2)'}}>{e.date.toDate().toLocaleDateString('pl-PL',{day:'numeric',month:'short',year:'2-digit'})}</span>
+                  <span style={{color:'var(--accent)',fontWeight:600}}>
+                    {e.weight} kg
+                    {d!==null&&<span style={{fontSize:11,color:parseFloat(d)<=0?'var(--success)':'var(--danger)',marginLeft:4}}>{parseFloat(d)>0?'+':''}{d}</span>}
+                  </span>
+                  <span style={{color:bmiColor(b),fontWeight:500}}>{b}</span>
+                  <button onClick={()=>deleteEntry(e.id)} style={{background:'none',color:'var(--text3)',padding:2}}><Trash2 size={13}/></button>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
