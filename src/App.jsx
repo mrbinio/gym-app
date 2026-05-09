@@ -8,6 +8,7 @@ import Workout from './pages/Workout'
 import Progress from './pages/Progress'
 import Exercises from './pages/Exercises'
 import History from './pages/History'
+import Weight from './pages/Weight'
 import Layout from './components/Layout'
 
 export default function App() {
@@ -27,8 +28,9 @@ export default function App() {
           <Route index element={<Dashboard user={user} />} />
           <Route path='workout' element={<Workout user={user} />} />
           <Route path='progress' element={<Progress user={user} />} />
-          <Route path='exercises' element={<Exercises user={user} />} />
+          <Route path='weight' element={<Weight user={user} />} />
           <Route path='history' element={<History user={user} />} />
+          <Route path='exercises' element={<Exercises user={user} />} />
         </Route>
       </Routes>
     </BrowserRouter>
