@@ -9,6 +9,7 @@ import Progress from './pages/Progress'
 import Exercises from './pages/Exercises'
 import History from './pages/History'
 import Weight from './pages/Weight'
+import Diet from './pages/Diet'
 import Layout from './components/Layout'
 
 export default function App() {
@@ -29,6 +30,7 @@ export default function App() {
           <Route path='workout' element={<Workout user={user} />} />
           <Route path='progress' element={<Progress user={user} />} />
           <Route path='weight' element={<Weight user={user} />} />
+          <Route path='diet' element={<Diet />} />
           <Route path='history' element={<History user={user} />} />
           <Route path='exercises' element={<Exercises user={user} />} />
         </Route>
