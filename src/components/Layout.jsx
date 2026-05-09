@@ -1,7 +1,7 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { signOut } from 'firebase/auth'
 import { auth } from '../firebase/config'
-import { Dumbbell, BarChart2, BookOpen, Home, LogOut, Clock, Scale } from 'lucide-react'
+import { Dumbbell, BarChart2, BookOpen, Home, LogOut, Clock, Scale, Salad } from 'lucide-react'
 
 export default function Layout({ user }) {
   const navigate = useNavigate()
@@ -11,8 +11,9 @@ export default function Layout({ user }) {
     { to:'/workout', icon:Dumbbell, label:'Trening' },
     { to:'/progress', icon:BarChart2, label:'Postep' },
     { to:'/weight', icon:Scale, label:'Waga' },
+    { to:'/diet', icon:Salad, label:'Dieta' },
     { to:'/history', icon:Clock, label:'Historia' },
-    { to:'/exercises', icon:BookOpen, label:'Cwiczenia' },
+    { to:'/exercises', icon:BookOpen, label:'Cwicz.' },
   ]
   return (
     <div style={{ display:'flex', flexDirection:'column', minHeight:'100vh' }}>
@@ -42,7 +43,7 @@ export default function Layout({ user }) {
           <Outlet/>
         </main>
       </div>
-      <nav style={{ display:'none', position:'fixed', bottom:0, left:0, right:0, background:'var(--bg2)', borderTop:'1px solid var(--border)', padding:'6px 0', zIndex:100 }} className='bottom-nav'>
+      <nav style={{ display:'none', position:'fixed', bottom:0, left:0, right:0, background:'var(--bg2)', borderTop:'1px solid var(--border)', padding:'4px 0', zIndex:100 }} className='bottom-nav'>
         {nav.map(({ to, icon:Icon, label }) => (
           <NavLink key={to} to={to} end={to==='/'} style={({ isActive }) => ({
             display:'flex', flexDirection:'column', alignItems:'center', gap:1, padding:'4px 0', flex:1,
