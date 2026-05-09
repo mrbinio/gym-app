@@ -20,7 +20,7 @@ export default function App() {
     </div>
   )
   return (
-    <BrowserRouter basename='/gym-app'>
+    <BrowserRouter>
       <Routes>
         <Route path='/login' element={!user ? <Login /> : <Navigate to='/' />} />
         <Route path='/' element={user ? <Layout user={user} /> : <Navigate to='/login' />}>
