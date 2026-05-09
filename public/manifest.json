@@ -1,17 +1,18 @@
 {
   "name": "Gym Biniarz",
   "short_name": "GymBiniarz",
-  "description": "Osobisty dziennik treningowy",
-  "start_url": "/gym-app/",
+  "description": "Twoj osobisty dziennik treningowy",
+  "start_url": "/",
   "display": "standalone",
-  "background_color": "#0a0e1a",
+  "background_color": "#0f172a",
   "theme_color": "#f97316",
   "orientation": "portrait",
   "icons": [
     {
-      "src": "/gym-app/favicon.svg",
+      "src": "/favicon.svg",
       "sizes": "any",
-      "type": "image/svg+xml"
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
     }
   ]
 }
