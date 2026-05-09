@@ -5,21 +5,42 @@ import { useLocation } from 'react-router-dom'
 import { DEFAULT_EXERCISES, DAYS } from '../data/exercises'
 import { Plus, Trash2, CheckCircle, ChevronDown, ChevronUp, Info, Calendar } from 'lucide-react'
 
+const SESSION_KEY = 'workout_draft'
+
 export default function Workout({ user }) {
   const location = useLocation()
-  const [selectedDay, setSelectedDay] = useState(location.state?.day || 'A')
+  const [selectedDay, setSelectedDay] = useState(() => {
+    const draft = sessionStorage.getItem(SESSION_KEY)
+    return draft ? JSON.parse(draft).day : (location.state?.day || 'A')
+  })
   const [exercises, setExercises] = useState([])
-  const [log, setLog] = useState({})
+  const [log, setLog] = useState(() => {
+    const draft = sessionStorage.getItem(SESSION_KEY)
+    return draft ? JSON.parse(draft).log : {}
+  })
   const [saved, setSaved] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [expanded, setExpanded] = useState({})
+  const [expanded, setExpanded] = useState(() => {
+    const draft = sessionStorage.getItem(SESSION_KEY)
+    return draft ? JSON.parse(draft).expanded : {}
+  })
   const [prevBests, setPrevBests] = useState({})
   const [showDesc, setShowDesc] = useState({})
   const todayStr = new Date().toISOString().split('T')[0]
-  const [workoutDate, setWorkoutDate] = useState(todayStr)
+  const [workoutDate, setWorkoutDate] = useState(() => {
+    const draft = sessionStorage.getItem(SESSION_KEY)
+    return draft ? JSON.parse(draft).date : todayStr
+  })
   const [extraName, setExtraName] = useState('')
   const [extraIsCardio, setExtraIsCardio] = useState(true)
   const [showExtra, setShowExtra] = useState(false)
+
+  // Save draft to sessionStorage whenever log changes
+  useEffect(() => {
+    if (!saved) {
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify({ day: selectedDay, log, expanded, date: workoutDate }))
+    }
+  }, [log, selectedDay, expanded, workoutDate, saved])
 
   useEffect(() => {
     const load = async () => {
@@ -36,8 +57,16 @@ export default function Workout({ user }) {
         else setPrevBests({})
       } catch(e) { console.error('prev',e) }
     }
-    load(); setLog({}); setSaved(false); setExpanded({})
+    load()
   }, [selectedDay, user.uid])
+
+  const changeDay = (day) => {
+    setSelectedDay(day)
+    setLog({})
+    setSaved(false)
+    setExpanded({})
+    sessionStorage.removeItem(SESSION_KEY)
+  }
 
   const initSets = (ex) => {
     if (log[ex.id]?.length > 0) { setExpanded(e=>({...e,[ex.id]:true})); return }
@@ -45,48 +74,48 @@ export default function Workout({ user }) {
     setExpanded(e=>({...e,[ex.id]:true}))
   }
   const addSet = (exId) => setLog(l=>({...l,[exId]:[...(l[exId]||[]),{weight:'',reps:''}]}))
-  const updateSet = (exId,idx,field,val) => setLog(l=>{const s=[...(l[exId]||[])];s[idx]={...s[idx],[field]:val};return{...l,[exId]:s}})
+  const updateSet = (exId,idx,field,val) => {
+    const fixed = field==='weight' ? val.replace(',','.') : val
+    setLog(l=>{const s=[...(l[exId]||[])];s[idx]={...s[idx],[field]:fixed};return{...l,[exId]:s}})
+  }
   const removeSet = (exId,idx) => setLog(l=>({...l,[exId]:(l[exId]||[]).filter((_,i)=>i!==idx)}))
 
   const addExtraExercise = () => {
     if (!extraName.trim()) return
     const id = 'extra_' + Date.now()
-    const isCardio = extraIsCardio
-    const newEx = { id, name: extraName.trim(), group: isCardio ? 'Cardio' : 'Dodatkowe', sets: 1, reps: isCardio ? 'min' : '10', noWeight: isCardio, isExtra: true }
-    setExercises(ex => [...ex, newEx])
-    setLog(l => ({...l, [id]: Array.from({length: isCardio ? 1 : 3}, ()=>({weight:'', reps:''}))}))    
-    setExpanded(e => ({...e, [id]: true}))
+    const newEx = { id, name:extraName.trim(), group:extraIsCardio?'Cardio':'Dodatkowe', sets:1, reps:extraIsCardio?'min':'10', noWeight:extraIsCardio, isExtra:true }
+    setExercises(ex=>[...ex,newEx])
+    setLog(l=>({...l,[id]:Array.from({length:extraIsCardio?1:3},()=>({weight:'',reps:''}))}))    
+    setExpanded(e=>({...e,[id]:true}))
     setExtraName('')
     setShowExtra(false)
   }
 
   const saveWorkout = async () => {
-    const loggedEx = exercises
-      .filter(e=>log[e.id]?.length>0)
-      .map(e=>({ exId:e.id, name:e.name, sets:log[e.id].filter(s=>s.reps||s.weight) }))
-      .filter(e=>e.sets.length>0)
+    const loggedEx = exercises.filter(e=>log[e.id]?.length>0).map(e=>({exId:e.id,name:e.name,sets:log[e.id].filter(s=>s.reps||s.weight)})).filter(e=>e.sets.length>0)
     if (!loggedEx.length) return
     setSaving(true)
     try {
-      const dateObj = new Date(workoutDate + 'T12:00:00')
-      await addDoc(collection(db,'workouts'), {
-        uid: user.uid,
-        day: selectedDay,
-        exercises: loggedEx,
-        date: Timestamp.fromDate(dateObj)
-      })
+      const dateObj = new Date(workoutDate+'T12:00:00')
+      await addDoc(collection(db,'workouts'),{uid:user.uid,day:selectedDay,exercises:loggedEx,date:Timestamp.fromDate(dateObj)})
       setSaved(true)
-    } catch(e) { console.error('save error', e); alert('Blad zapisu: ' + e.message) }
+      sessionStorage.removeItem(SESSION_KEY)
+    } catch(e) { console.error('save error',e); alert('Blad zapisu: '+e.message) }
     setSaving(false)
   }
   const totalSets = Object.values(log).reduce((a,s)=>a+(s?.filter(s=>s.reps||s.weight).length||0),0)
   const dayConfig = DAYS[selectedDay]
   return (
     <div>
-      <h1 style={{fontFamily:'var(--font-display)',fontSize:32,letterSpacing:2,marginBottom:16}}>TRENING</h1>
+      <h1 style={{fontFamily:'var(--font-display)',fontSize:32,letterSpacing:2,marginBottom:4}}>TRENING</h1>
+      {Object.values(log).some(s=>s?.length>0) && !saved && (
+        <div style={{marginBottom:12,padding:'8px 14px',background:'rgba(249,115,22,0.1)',border:'1px solid var(--accent)44',borderRadius:'var(--radius-sm)',fontSize:12,color:'var(--accent)'}}>
+          Trening w trakcie – dane sa zapisane, mozesz wychodzic z tej strony
+        </div>
+      )}
       <div style={{display:'flex',gap:8,marginBottom:16,flexWrap:'wrap'}}>
         {Object.entries(DAYS).map(([key,{label,color}])=>(
-          <button key={key} onClick={()=>setSelectedDay(key)} style={{padding:'8px 18px',borderRadius:20,border:'1px solid '+(selectedDay===key?color:'var(--border)'),background:selectedDay===key?color+'22':'transparent',color:selectedDay===key?color:'var(--text2)',fontWeight:selectedDay===key?600:400,fontSize:14}}>{label}</button>
+          <button key={key} onClick={()=>changeDay(key)} style={{padding:'8px 18px',borderRadius:20,border:'1px solid '+(selectedDay===key?color:'var(--border)'),background:selectedDay===key?color+'22':'transparent',color:selectedDay===key?color:'var(--text2)',fontWeight:selectedDay===key?600:400,fontSize:14}}>{label}</button>
         ))}
       </div>
       <div style={{marginBottom:16,padding:'12px 16px',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:'var(--radius-sm)',display:'flex',alignItems:'center',gap:10}}>
@@ -99,9 +128,8 @@ export default function Workout({ user }) {
         <div style={{textAlign:'center',padding:'40px 20px',background:'var(--bg2)',borderRadius:'var(--radius)',border:'1px solid var(--success)44'}}>
           <CheckCircle size={48} color='var(--success)' style={{marginBottom:12}}/>
           <div style={{fontFamily:'var(--font-display)',fontSize:28,letterSpacing:2,color:'var(--success)',marginBottom:8}}>TRENING ZAPISANY!</div>
-          <div style={{color:'var(--text3)',fontSize:14,marginBottom:6}}>{workoutDate}</div>
-          <div style={{color:'var(--text3)',fontSize:14,marginBottom:20}}>{totalSets} serii zapisanych</div>
-          <button className='btn-ghost' onClick={()=>{setSaved(false);setLog({});setWorkoutDate(todayStr)}}>Zacznij kolejny</button>
+          <div style={{color:'var(--text3)',fontSize:14,marginBottom:20}}>{totalSets} serii – {workoutDate}</div>
+          <button className='btn-ghost' onClick={()=>{setSaved(false);setLog({});setWorkoutDate(todayStr);setExpanded({})}}>Zacznij kolejny</button>
         </div>
       ) : (
         <>
@@ -110,8 +138,8 @@ export default function Workout({ user }) {
               const sets=log[ex.id]||[]
               const prev=prevBests[ex.id]||[]
               const doneSets=sets.filter(s=>s.reps||s.weight).length
-              const isBodyweight = ex.noWeight === true
-              return (
+              const isBodyweight=ex.noWeight===true
+              return(
                 <div key={ex.id} className='card' style={{padding:0,overflow:'hidden',border:doneSets>0?'1px solid var(--accent)44':'1px solid var(--border)'}}>
                   <div style={{display:'flex',alignItems:'center',gap:12,padding:'14px 16px',cursor:'pointer'}} onClick={()=>expanded[ex.id]?setExpanded(e=>({...e,[ex.id]:false})):initSets(ex)}>
                     <div style={{flex:1}}>
@@ -140,8 +168,8 @@ export default function Workout({ user }) {
                       {sets.map((s,i)=>(
                         <div key={i} style={{display:'grid',gridTemplateColumns:isBodyweight?'28px 1fr 28px':'28px 1fr 1fr 28px',gap:6,marginBottom:6,alignItems:'center'}}>
                           <span style={{fontSize:12,color:(s.reps||s.weight)?'var(--accent)':'var(--text3)',paddingTop:8,fontWeight:600}}>{i+1}</span>
-                          {!isBodyweight&&<input type='number' inputMode='decimal' placeholder={prev[i]?.weight||'kg'} value={s.weight} onChange={e=>updateSet(ex.id,i,'weight',e.target.value)} min='0' step='0.5'/>}
-                          <input type='text' placeholder={ex.reps||prev[i]?.reps||'powt/min'} value={s.reps} onChange={e=>updateSet(ex.id,i,'reps',e.target.value)}/>
+                          {!isBodyweight&&<input type='text' inputMode='decimal' placeholder={prev[i]?.weight||'kg'} value={s.weight} onChange={e=>updateSet(ex.id,i,'weight',e.target.value)}/>}
+                          <input type='text' inputMode='numeric' placeholder={ex.reps||prev[i]?.reps||'powt'} value={s.reps} onChange={e=>updateSet(ex.id,i,'reps',e.target.value)}/>
                           <button onClick={()=>removeSet(ex.id,i)} style={{background:'none',color:'var(--text3)',padding:4,paddingTop:8}}><Trash2 size={13}/></button>
                         </div>
                       ))}
@@ -159,7 +187,7 @@ export default function Workout({ user }) {
               <button onClick={()=>setExtraIsCardio(false)} style={{flex:1,padding:'8px',borderRadius:'var(--radius-sm)',border:'1px solid '+(!extraIsCardio?'var(--accent)':'var(--border)'),background:!extraIsCardio?'rgba(249,115,22,0.15)':'transparent',color:!extraIsCardio?'var(--accent)':'var(--text3)',fontSize:13,fontWeight:!extraIsCardio?600:400}}>Silowe / z kg</button>
             </div>
             <div style={{display:'flex',gap:8}}>
-              <input value={extraName} onChange={e=>setExtraName(e.target.value)} placeholder={extraIsCardio?'np. Bieznia, Rower, Plywanie':'np. Wyciskanie sztangi'} onKeyDown={e=>e.key==='Enter'&&addExtraExercise()} style={{flex:1}}/>
+              <input value={extraName} onChange={e=>setExtraName(e.target.value)} placeholder={extraIsCardio?'np. Bieznia, Rower':'np. Wyciskanie sztangi'} onKeyDown={e=>e.key==='Enter'&&addExtraExercise()} style={{flex:1}}/>
               <button onClick={addExtraExercise} disabled={!extraName.trim()} className='btn-primary' style={{width:'auto',padding:'10px 16px',whiteSpace:'nowrap',opacity:extraName.trim()?1:0.4}}>Dodaj</button>
             </div>
           </div>
