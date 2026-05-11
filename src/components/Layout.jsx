@@ -26,7 +26,18 @@ export default function Layout({ user }) {
 
   return (
     <div style={{ display:'flex', flexDirection:'column', minHeight:'100vh' }}>
-      <header style={{ background:'var(--bg2)', borderBottom:'1px solid var(--border)', padding:'12px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', position:'sticky', top:0, zIndex:100 }}>
+      <header style={{
+        background:'var(--bg2)',
+        borderBottom:'1px solid var(--border)',
+        padding:'12px 20px',
+        paddingTop:'calc(12px + env(safe-area-inset-top))',
+        display:'flex',
+        alignItems:'center',
+        justifyContent:'space-between',
+        position:'sticky',
+        top:0,
+        zIndex:100
+      }}>
         <div style={{ fontFamily:'var(--font-display)', fontSize:22, letterSpacing:2, color:'var(--accent)' }}>GYM BINIARZ</div>
         <div style={{ display:'flex', alignItems:'center', gap:10 }}>
           <span style={{ fontSize:12, color:'var(--text3)' }}>{user.email?.split('@')[0]}</span>
@@ -55,8 +66,7 @@ export default function Layout({ user }) {
         </main>
       </div>
 
-      {/* Mobile bottom nav - 4 main + More button */}
-      <nav style={{ display:'none', position:'fixed', bottom:0, left:0, right:0, background:'var(--bg2)', borderTop:'1px solid var(--border)', zIndex:100 }} className='bottom-nav'>
+      <nav style={{ display:'none', position:'fixed', bottom:0, left:0, right:0, background:'var(--bg2)', borderTop:'1px solid var(--border)', zIndex:100, paddingBottom:'env(safe-area-inset-bottom)' }} className='bottom-nav'>
         <div style={{ display:'flex', padding:'6px 0' }}>
           {MAIN_NAV.map(({ to, icon:Icon, label }) => (
             <NavLink key={to} to={to} end={to==='/'} onClick={() => setShowMore(false)} style={({ isActive }) => ({
@@ -76,7 +86,6 @@ export default function Layout({ user }) {
           </button>
         </div>
 
-        {/* More menu dropdown */}
         {showMore && (
           <div style={{ position:'absolute', bottom:'100%', right:0, background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:'var(--radius-sm) 0 0 0', minWidth:160, boxShadow:'0 -4px 20px rgba(0,0,0,0.3)' }}>
             {MORE_NAV.map(({ to, icon:Icon, label }) => (
@@ -96,7 +105,7 @@ export default function Layout({ user }) {
         @media (max-width: 640px) {
           .sidebar { display: none !important; }
           .bottom-nav { display: block !important; }
-          main { padding-bottom: 75px !important; }
+          main { padding-bottom: calc(75px + env(safe-area-inset-bottom)) !important; }
         }
       `}</style>
     </div>
