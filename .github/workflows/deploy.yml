@@ -14,8 +14,10 @@ jobs:
           node-version: '20'
       - name: Install and build
         run: npm install && npm run build
+        env:
+          VITE_ANTHROPIC_KEY: ${{ secrets.VITE_ANTHROPIC_KEY }}
       - name: Check dist
-        run: ls dist/ && grep -o 'src="[^"]*"' dist/index.html | head -3
+        run: ls dist/
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
