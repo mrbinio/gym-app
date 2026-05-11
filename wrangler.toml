@@ -1,4 +1,0 @@
-name = "gym-api-proxy"
-main = "worker.js"
-compatibility_date = "2024-01-01"
-account_id = "e260b4133b9fd9640d2a06db81c01cc8"
