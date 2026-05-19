@@ -30,7 +30,7 @@ export default function App() {
           <Route path='workout' element={<Workout user={user} />} />
           <Route path='progress' element={<Progress user={user} />} />
           <Route path='weight' element={<Weight user={user} />} />
-          <Route path='diet' element={<Diet />} />
+          <Route path='diet' element={<Diet user={user} />} />
           <Route path='history' element={<History user={user} />} />
           <Route path='exercises' element={<Exercises user={user} />} />
         </Route>
