@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { useNavigate } from 'react-router-dom'
-import { Dumbbell, Flame, TrendingUp, Calendar } from 'lucide-react'
+import { Dumbbell, Flame, TrendingUp } from 'lucide-react'
 import { DAYS } from '../data/exercises'
 
 export default function Dashboard({ user }) {
@@ -29,14 +29,10 @@ export default function Dashboard({ user }) {
     load()
   }, [user.uid])
 
-  const today = new Date().toLocaleDateString('pl-PL',{weekday:'long',day:'numeric',month:'long'})
-  const name = (user.displayName?.split(' ')[0] || user.email.split('@')[0]).toUpperCase()
-
   return (
     <div>
       <div style={{marginBottom:28}}>
-        <div style={{fontSize:13,color:'var(--text3)',textTransform:'uppercase',letterSpacing:1,marginBottom:4}}>{today}</div>
-        <h1 style={{fontFamily:'var(--font-display)',fontSize:36,letterSpacing:2}}>WITAJ, {name}!</h1>
+        <h1 style={{fontFamily:'var(--font-display)',fontSize:36,letterSpacing:2}}>WITAJ, {(user.displayName?.split(' ')[0]||user.email.split('@')[0]).toUpperCase()}!</h1>
       </div>
       <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))',gap:12,marginBottom:28}}>
         {[{label:'Wszystkie treningi',value:stats.total,icon:Dumbbell,color:'#3b82f6'},{label:'Ten tydzien',value:stats.thisWeek,icon:Flame,color:'var(--accent)'},{label:'Cwiczenia w planie',value:22,icon:TrendingUp,color:'#22c55e'}].map(({label,value,icon:Icon,color})=>(
@@ -47,12 +43,10 @@ export default function Dashboard({ user }) {
         ))}
       </div>
       <div className='card' style={{marginBottom:24,border:'1px solid var(--accent)33'}}>
-        <h2 style={{fontSize:16,fontWeight:600,marginBottom:16,display:'flex',alignItems:'center',gap:8}}><Calendar size={16} color='var(--accent)'/> Zacznij trening</h2>
+        <h2 style={{fontSize:16,fontWeight:600,marginBottom:16}}>Zacznij trening</h2>
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))',gap:10}}>
           {Object.entries(DAYS).map(([key,{label,sub,color}])=>(
-            <button key={key} onClick={()=>navigate('/workout',{state:{day:key}})}
-              style={{background:'var(--bg3)',border:'1px solid '+color+'44',borderRadius:'var(--radius-sm)',padding:'14px 16px',textAlign:'left',cursor:'pointer',transition:'all 0.2s'}}
-              onMouseEnter={e=>e.currentTarget.style.borderColor=color} onMouseLeave={e=>e.currentTarget.style.borderColor=color+'44'}>
+            <button key={key} onClick={()=>navigate('/workout',{state:{day:key}})} style={{background:'var(--bg3)',border:'1px solid '+color+'44',borderRadius:'var(--radius-sm)',padding:'14px 16px',textAlign:'left',cursor:'pointer'}}>
               <div style={{fontFamily:'var(--font-display)',fontSize:20,letterSpacing:1,color,marginBottom:2}}>{label}</div>
               <div style={{fontSize:11,color:'var(--text3)'}}>{sub}</div>
             </button>
@@ -62,7 +56,7 @@ export default function Dashboard({ user }) {
       <div className='card'>
         <h2 style={{fontSize:16,fontWeight:600,marginBottom:16}}>Ostatnie treningi</h2>
         {loading?<div style={{color:'var(--text3)',fontSize:13}}>Ladowanie...</div>:recent.length===0?(
-          <div style={{textAlign:'center',padding:'20px 0',color:'var(--text3)',fontSize:14}}>Brak treningow. Zacznij pierwszy! {String.fromCharCode(128170)}</div>
+          <div style={{textAlign:'center',padding:'20px 0',color:'var(--text3)',fontSize:14}}>Brak treningow. Zacznij pierwszy!</div>
         ):(recent.map(w=>(
           <div key={w.id} style={{display:'flex',alignItems:'center',gap:12,padding:'10px 0',borderBottom:'1px solid var(--border)'}}>
             <div style={{width:36,height:36,borderRadius:8,background:(DAYS[w.day]?.color||'#888')+'22',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--font-display)',fontSize:16,color:DAYS[w.day]?.color||'#888',flexShrink:0}}>{w.day}</div>
